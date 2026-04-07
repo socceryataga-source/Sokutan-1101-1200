@@ -253,7 +253,7 @@ const quizData = [
     "choices": [
       "診察",
       "面会",
-      "予約",
+      "指示",
       "任命"
     ],
     "sentence": "Her appointment as team leader was announced yesterday.",
@@ -459,9 +459,9 @@ const quizData = [
     "word": "code",
     "meaning": "規定",
     "choices": [
-      "暗号",
+      "定規",
       "規定",
-      "記号",
+      "羅列",
       "通知"
     ],
     "sentence": "All members must follow the club code.",
