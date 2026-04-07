@@ -1,181 +1,187 @@
+
 let mode = "order";
-let fullQuiz = [];
+let quizData = [];
 let currentIndex = 0;
 let score = 0;
-let answeredMap = new Map();
+let answered = {};
 let lastSettings = { start: 1101, end: 1200, mode: "order" };
 
-const menuView = document.getElementById("menuView");
-const quizView = document.getElementById("quizView");
-const resultView = document.getElementById("resultView");
-const startInput = document.getElementById("startNum");
-const endInput = document.getElementById("endNum");
+const menuEl = document.getElementById("menu");
+const quizEl = document.getElementById("quiz");
+const resultEl = document.getElementById("result");
+const startInput = document.getElementById("start");
+const endInput = document.getElementById("end");
 const progressText = document.getElementById("progressText");
+const progressFill = document.getElementById("progressFill");
+const wordEl = document.getElementById("word");
+const choicesEl = document.getElementById("choices");
+const feedbackEl = document.getElementById("feedback");
 const scoreText = document.getElementById("scoreText");
-const wordText = document.getElementById("wordText");
-const choicesBox = document.getElementById("choices");
-const feedbackBox = document.getElementById("feedback");
-const resultText = document.getElementById("resultText");
 
-document.getElementById("orderBtn").addEventListener("click", () => setMode("order"));
-document.getElementById("randomBtn").addEventListener("click", () => setMode("random"));
+document.querySelectorAll(".mode-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".mode-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    mode = btn.dataset.mode;
+  });
+});
+
 document.getElementById("startBtn").addEventListener("click", startQuiz);
 document.getElementById("prevBtn").addEventListener("click", prevQuestion);
 document.getElementById("nextBtn").addEventListener("click", nextQuestion);
-document.getElementById("menuBtn").addEventListener("click", goMenu);
-document.getElementById("restartBtn").addEventListener("click", restartSameSettings);
-document.getElementById("resetRangeBtn").addEventListener("click", resetRange);
-document.getElementById("resultRestartBtn").addEventListener("click", restartSameSettings);
-document.getElementById("resultResetRangeBtn").addEventListener("click", resetRange);
-document.getElementById("resultMenuBtn").addEventListener("click", goMenu);
+document.getElementById("restartBtn").addEventListener("click", restartQuiz);
+document.getElementById("resetBtn").addEventListener("click", resetToMenu);
+document.getElementById("menuBackTop").addEventListener("click", resetToMenu);
+document.getElementById("menuBackBottom").addEventListener("click", resetToMenu);
+document.getElementById("restartFromResult").addEventListener("click", restartQuiz);
+document.getElementById("resetFromResult").addEventListener("click", resetToMenu);
+document.getElementById("menuFromResult").addEventListener("click", resetToMenu);
 document.getElementById("speakBtn").addEventListener("click", speakWord);
 
-function setMode(nextMode){
-  mode = nextMode;
-  document.getElementById("orderBtn").classList.toggle("active", nextMode === "order");
-  document.getElementById("randomBtn").classList.toggle("active", nextMode === "random");
-}
-
-function startQuiz(){
+function startQuiz() {
   const start = Number(startInput.value);
   const end = Number(endInput.value);
 
-  if(Number.isNaN(start) || Number.isNaN(end) || start > end){
+  if (Number.isNaN(start) || Number.isNaN(end) || start > end) {
     alert("開始番号と終了番号を正しく入力してください。");
     return;
   }
 
-  const pool = quizData.filter(item => item.id >= start && item.id <= end);
-  if(pool.length === 0){
-    alert("その範囲にはデータがありません。");
+  quizData = data.filter(item => item.id >= start && item.id <= end);
+
+  if (quizData.length === 0) {
+    alert("その範囲のデータがありません。");
     return;
+  }
+
+  if (mode === "random") {
+    quizData = [...quizData].sort(() => Math.random() - 0.5);
+  } else {
+    quizData = [...quizData].sort((a, b) => a.id - b.id);
   }
 
   lastSettings = { start, end, mode };
-  fullQuiz = [...pool];
-  if(mode === "random"){
-    shuffle(fullQuiz);
-  }
   currentIndex = 0;
   score = 0;
-  answeredMap = new Map();
+  answered = {};
 
-  menuView.classList.add("hidden");
-  resultView.classList.add("hidden");
-  quizView.classList.remove("hidden");
+  menuEl.classList.add("hidden");
+  resultEl.classList.add("hidden");
+  quizEl.classList.remove("hidden");
+
   renderQuestion();
 }
 
-function renderQuestion(){
-  const item = fullQuiz[currentIndex];
-  progressText.textContent = `${currentIndex + 1} / ${fullQuiz.length}`;
-  scoreText.textContent = `得点 ${score}`;
-  wordText.textContent = item.word;
-  feedbackBox.classList.add("hidden");
-  feedbackBox.innerHTML = "";
+function renderQuestion() {
+  const q = quizData[currentIndex];
+  const progress = ((currentIndex + 1) / quizData.length) * 100;
 
-  choicesBox.innerHTML = "";
-  const saved = answeredMap.get(item.id);
+  progressText.textContent = `${currentIndex + 1} / ${quizData.length}（No.${q.id}）`;
+  progressFill.style.width = `${progress}%`;
+  wordEl.textContent = q.word;
 
-  item.choices.forEach((choice, index) => {
+  choicesEl.innerHTML = "";
+  feedbackEl.className = "feedback hidden";
+  feedbackEl.innerHTML = "";
+
+  q.choices.forEach((choice, index) => {
     const btn = document.createElement("button");
-    btn.type = "button";
     btn.className = "choice-btn";
     btn.textContent = choice;
-    if(saved){
-      btn.disabled = true;
-      if(index === item.correct){
-        btn.classList.add("correct");
-      }
-      if(index === saved.selected && saved.selected !== item.correct){
-        btn.classList.add("wrong");
-      }
-    } else {
-      btn.addEventListener("click", () => answerQuestion(index));
-    }
-    choicesBox.appendChild(btn);
+    btn.disabled = Boolean(answered[q.id]);
+    btn.addEventListener("click", () => answerQuestion(index));
+    choicesEl.appendChild(btn);
   });
 
-  if(saved){
-    showFeedback(saved.correct, item);
+  if (answered[q.id]) {
+    reflectAnsweredState(q, answered[q.id]);
   }
+
+  document.getElementById("prevBtn").disabled = currentIndex === 0;
+  document.getElementById("nextBtn").textContent = currentIndex === quizData.length - 1 ? "結果を見る" : "次へ";
 }
 
-function answerQuestion(selectedIndex){
-  const item = fullQuiz[currentIndex];
-  if(answeredMap.has(item.id)) return;
+function answerQuestion(selectedIndex) {
+  const q = quizData[currentIndex];
+  if (answered[q.id]) return;
 
-  const correct = selectedIndex === item.correct;
-  answeredMap.set(item.id, { selected: selectedIndex, correct });
+  const isCorrect = selectedIndex === q.correct;
+  if (isCorrect) score += 1;
 
-  if(correct) score += 1;
+  answered[q.id] = { selectedIndex, isCorrect };
+  reflectAnsweredState(q, answered[q.id]);
+}
 
+function reflectAnsweredState(q, state) {
+  const buttons = choicesEl.querySelectorAll(".choice-btn");
+  buttons.forEach((btn, i) => {
+    btn.disabled = true;
+    if (i === q.correct) btn.classList.add("correct");
+    if (i === state.selectedIndex && !state.isCorrect) btn.classList.add("wrong");
+  });
+
+  feedbackEl.className = `feedback ${state.isCorrect ? "ok" : "ng"}`;
+  feedbackEl.classList.remove("hidden");
+  feedbackEl.innerHTML = `
+    <strong>${state.isCorrect ? "⭕ 正解" : "❌ 不正解"}</strong><br>
+    正解：${q.choices[q.correct]}
+    <div class="example-block">
+      <div><strong>例文</strong>：${escapeHtml(q.sentence)}</div>
+      <div><strong>和訳</strong>：${escapeHtml(q.jp)}</div>
+    </div>
+  `;
+}
+
+function nextQuestion() {
+  if (currentIndex === quizData.length - 1) {
+    showResult();
+    return;
+  }
+  currentIndex += 1;
   renderQuestion();
 }
 
-function showFeedback(isCorrect, item){
-  feedbackBox.classList.remove("hidden");
-  feedbackBox.innerHTML = `
-    <div class="feedback-status">${isCorrect ? "⭕ 正解" : "❌ 不正解"}</div>
-    <div class="feedback-answer">正解：${item.choices[item.correct]}</div>
-    <div>${item.sentence}</div>
-    <div>${item.jp}</div>
-  `;
-  scoreText.textContent = `得点 ${score}`;
+function prevQuestion() {
+  if (currentIndex === 0) return;
+  currentIndex -= 1;
+  renderQuestion();
 }
 
-function prevQuestion(){
-  if(currentIndex > 0){
-    currentIndex -= 1;
-    renderQuestion();
-  }
+function showResult() {
+  quizEl.classList.add("hidden");
+  resultEl.classList.remove("hidden");
+  scoreText.textContent = `得点：${score} / ${quizData.length}`;
 }
 
-function nextQuestion(){
-  if(currentIndex < fullQuiz.length - 1){
-    currentIndex += 1;
-    renderQuestion();
-    return;
-  }
-  showResult();
-}
-
-function showResult(){
-  quizView.classList.add("hidden");
-  resultView.classList.remove("hidden");
-  resultText.textContent = `${fullQuiz.length}問中 ${score}問正解でした。`;
-}
-
-function restartSameSettings(){
+function restartQuiz() {
+  if (!lastSettings) return;
   startInput.value = lastSettings.start;
   endInput.value = lastSettings.end;
-  setMode(lastSettings.mode);
+  mode = lastSettings.mode;
+  document.querySelectorAll(".mode-btn").forEach(btn => {
+    btn.classList.toggle("active", btn.dataset.mode === mode);
+  });
   startQuiz();
 }
 
-function resetRange(){
-  quizView.classList.add("hidden");
-  resultView.classList.add("hidden");
-  menuView.classList.remove("hidden");
+function resetToMenu() {
+  quizEl.classList.add("hidden");
+  resultEl.classList.add("hidden");
+  menuEl.classList.remove("hidden");
 }
 
-function goMenu(){
-  quizView.classList.add("hidden");
-  resultView.classList.add("hidden");
-  menuView.classList.remove("hidden");
-}
-
-function speakWord(){
-  if(!fullQuiz.length) return;
-  const utterance = new SpeechSynthesisUtterance(fullQuiz[currentIndex].word);
+function speakWord() {
+  if (!quizData.length) return;
+  const text = quizData[currentIndex].word;
+  const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = "en-US";
   speechSynthesis.cancel();
   speechSynthesis.speak(utterance);
 }
 
-function shuffle(array){
-  for(let i = array.length - 1; i > 0; i--){
-    const j = Math.floor(Math.random() * (i + 1));
-    [array[i], array[j]] = [array[j], array[i]];
-  }
+function escapeHtml(text) {
+  return text
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
 }

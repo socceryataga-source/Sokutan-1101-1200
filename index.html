@@ -3,83 +3,101 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <script>
 const password = prompt("クラスコードを入力してください");
 if(password !== "hokuto2026"){
-  document.body.innerHTML = "<h2 style=\"font-family:sans-serif;text-align:center;margin-top:4rem;\">アクセスできません</h2>";
+  document.body.innerHTML = "<h2 style='font-family:sans-serif;text-align:center;margin-top:3rem;'>アクセスできません</h2>";
 }
 </script>
+
 <title>頻出語句クイズ（No.1101-1200）</title>
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <main class="page">
-    <section id="menuView" class="panel">
-      <h1>頻出語句クイズ（No.1101-1200）</h1>
-      <p class="lead">出題範囲と順序を設定してスタートしてください。</p>
-      <div class="card settings">
-        <div class="field-row">
-          <label for="startNum">開始番号</label>
-          <input id="startNum" type="number" min="1101" max="1200" value="1101">
+<div class="page-shell">
+  <header class="site-header">
+    <h1>頻出語句クイズ（No.1101-1200）</h1>
+    <p class="subtitle">授業用 英単語4択クイズ</p>
+  </header>
+
+  <main>
+    <section class="card menu-card" id="menu">
+      <h2>出題設定</h2>
+      <div class="form-grid">
+        <label>
+          <span>開始番号</span>
+          <input type="number" id="start" min="1101" max="1200" value="1101">
+        </label>
+        <label>
+          <span>終了番号</span>
+          <input type="number" id="end" min="1101" max="1200" value="1200">
+        </label>
+      </div>
+
+      <div class="mode-group">
+        <p>出題順</p>
+        <div class="mode-buttons">
+          <button type="button" class="mode-btn active" data-mode="order">順番通り</button>
+          <button type="button" class="mode-btn" data-mode="random">ランダム</button>
         </div>
-        <div class="field-row">
-          <label for="endNum">終了番号</label>
-          <input id="endNum" type="number" min="1101" max="1200" value="1200">
-        </div>
-        <div class="field-row">
-          <span>出題順</span>
-          <div class="toggle-group">
-            <button id="orderBtn" class="toggle active" type="button">順番通り</button>
-            <button id="randomBtn" class="toggle" type="button">ランダム</button>
-          </div>
-        </div>
-        <button id="startBtn" class="primary-btn" type="button">スタート</button>
+      </div>
+
+      <div class="action-row">
+        <button class="primary-btn" id="startBtn">スタート</button>
       </div>
     </section>
 
-    <section id="quizView" class="panel hidden">
-      <div class="card quiz-card">
-        <div class="topbar">
-          <div id="progressText" class="progress"></div>
-          <div id="scoreText" class="score"></div>
+    <section class="card quiz-card hidden" id="quiz">
+      <div class="quiz-top">
+        <div class="progress-wrap">
+          <div id="progressText">1 / 100</div>
+          <div class="progress-bar"><div id="progressFill"></div></div>
         </div>
-        <div class="word-row">
-          <h2 id="wordText"></h2>
-          <button id="speakBtn" type="button" class="icon-btn" aria-label="音声再生">🔊</button>
+        <button class="ghost-btn" id="menuBackTop">メニューに戻る</button>
+      </div>
+
+      <div class="word-area">
+        <div class="word-line">
+          <h2 id="word">word</h2>
+          <button class="sound-btn" id="speakBtn" aria-label="音声再生">🔊</button>
         </div>
-        <div id="choices" class="choices"></div>
-        <div id="feedback" class="feedback"></div>
-        <div class="nav-row">
-          <button id="prevBtn" type="button">前へ</button>
-          <button id="nextBtn" type="button">次へ</button>
-        </div>
-        <div class="nav-row bottom-actions">
-          <button id="restartBtn" type="button">同条件でリスタート</button>
-          <button id="resetRangeBtn" type="button">別範囲でやり直し</button>
-          <button id="menuBtn" type="button">メニューに戻る</button>
-        </div>
+      </div>
+
+      <div class="choices" id="choices"></div>
+
+      <div id="feedback" class="feedback hidden"></div>
+
+      <div class="nav-row">
+        <button class="ghost-btn" id="prevBtn">前へ</button>
+        <button class="ghost-btn" id="nextBtn">次へ</button>
+      </div>
+
+      <div class="menu-row">
+        <button class="ghost-btn" id="restartBtn">同条件でリスタート</button>
+        <button class="ghost-btn" id="resetBtn">別範囲でやり直し</button>
+        <button class="ghost-btn" id="menuBackBottom">メニューに戻る</button>
       </div>
     </section>
 
-    <section id="resultView" class="panel hidden">
-      <div class="card result-card">
-        <h2>結果</h2>
-        <p id="resultText" class="result-text"></p>
-        <div class="nav-row bottom-actions">
-          <button id="resultRestartBtn" type="button">同条件でリスタート</button>
-          <button id="resultResetRangeBtn" type="button">別範囲でやり直し</button>
-          <button id="resultMenuBtn" type="button">メニューに戻る</button>
-        </div>
+    <section class="card result-card hidden" id="result">
+      <h2>結果</h2>
+      <p id="scoreText"></p>
+      <div class="menu-row">
+        <button class="primary-btn" id="restartFromResult">同条件でリスタート</button>
+        <button class="ghost-btn" id="resetFromResult">別範囲でやり直し</button>
+        <button class="ghost-btn" id="menuFromResult">メニューに戻る</button>
       </div>
     </section>
   </main>
 
-  <footer class="footer">
+  <footer class="site-footer">
     本教材は授業内利用を目的とした補助教材です。<br>
     市販教材を参考にしていますが、例文・表現は独自に作成しています。
   </footer>
+</div>
 
-  <script src="data.js"></script>
-  <script src="script.js"></script>
+<script src="data.js"></script>
+<script src="script.js"></script>
 </body>
 </html>
