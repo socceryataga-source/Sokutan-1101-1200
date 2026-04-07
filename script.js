@@ -2,42 +2,50 @@ const menuScreen = document.getElementById('menuScreen');
 const quizScreen = document.getElementById('quizScreen');
 const resultScreen = document.getElementById('resultScreen');
 
-const startNoInput = document.getElementById('startNo');
-const endNoInput = document.getElementById('endNo');
+const startInput = document.getElementById('startInput');
+const endInput = document.getElementById('endInput');
 const startBtn = document.getElementById('startBtn');
+const modeButtons = Array.from(document.querySelectorAll('.modeBtn'));
 
 const progressText = document.getElementById('progressText');
 const progressBar = document.getElementById('progressBar');
-const scoreNow = document.getElementById('scoreNow');
+const scoreText = document.getElementById('scoreText');
 const questionNo = document.getElementById('questionNo');
 const wordText = document.getElementById('wordText');
-const exampleSentence = document.getElementById('exampleSentence');
-const exampleTranslation = document.getElementById('exampleTranslation');
-const choicesBox = document.getElementById('choices');
-const feedbackBox = document.getElementById('feedback');
+const choices = document.getElementById('choices');
+const feedback = document.getElementById('feedback');
+const speakBtn = document.getElementById('speakBtn');
 
 const prevBtn = document.getElementById('prevBtn');
 const nextBtn = document.getElementById('nextBtn');
 const restartBtn = document.getElementById('restartBtn');
-const menuBtn = document.getElementById('menuBtn');
-const speakBtn = document.getElementById('speakBtn');
+const retryRangeBtn = document.getElementById('retryRangeBtn');
+const backMenuBtn = document.getElementById('backMenuBtn');
 
-const resultSummary = document.getElementById('resultSummary');
-const retryBtn = document.getElementById('retryBtn');
-const resultMenuBtn = document.getElementById('resultMenuBtn');
+const finalScore = document.getElementById('finalScore');
+const finalRate = document.getElementById('finalRate');
+const restartFromResultBtn = document.getElementById('restartFromResultBtn');
+const retryRangeFromResultBtn = document.getElementById('retryRangeFromResultBtn');
+const backMenuFromResultBtn = document.getElementById('backMenuFromResultBtn');
 
+const MIN_NO = 1101;
+const MAX_NO = 1200;
+const CHOICE_LABELS = ['A.', 'B.', 'C.', 'D.'];
+
+let currentMode = 'order';
 let currentSet = [];
 let currentIndex = 0;
 let userAnswers = [];
 let lastSettings = null;
 
 function showScreen(screen) {
-  [menuScreen, quizScreen, resultScreen].forEach(el => el.classList.add('hidden'));
+  [menuScreen, quizScreen, resultScreen].forEach(section => section.classList.add('hidden'));
   screen.classList.remove('hidden');
 }
 
-function getOrderMode() {
-  return document.querySelector('input[name="orderMode"]:checked').value;
+function setMode(mode) {
+  currentMode = mode;
+  modeButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.mode === mode));
 }
 
 function shuffle(array) {
@@ -49,49 +57,54 @@ function shuffle(array) {
   return cloned;
 }
 
-function buildQuestionSet() {
-  const start = Number(startNoInput.value);
-  const end = Number(endNoInput.value);
-  const orderMode = getOrderMode();
+function normalizeNumber(value) {
+  return Number(String(value).trim());
+}
 
+function validateRange(start, end) {
   if (Number.isNaN(start) || Number.isNaN(end)) {
     alert('開始番号と終了番号を入力してください。');
-    return null;
+    return false;
   }
-
+  if (start < MIN_NO || end > MAX_NO) {
+    alert(`範囲は ${MIN_NO}〜${MAX_NO} で指定してください。`);
+    return false;
+  }
   if (start > end) {
     alert('開始番号は終了番号以下にしてください。');
-    return null;
+    return false;
   }
+  return true;
+}
 
-  const filtered = quizData.filter(item => item.no >= start && item.no <= end);
-
+function buildQuestionSet(settings) {
+  const filtered = quizData.filter(item => item.no >= settings.start && item.no <= settings.end);
   if (filtered.length === 0) {
     alert('その範囲にはデータがありません。');
     return null;
   }
+  return settings.mode === 'random' ? shuffle(filtered) : [...filtered].sort((a, b) => a.no - b.no);
+}
 
-  const questionSet = orderMode === 'random' ? shuffle(filtered) : [...filtered];
-
-  lastSettings = { start, end, orderMode };
-  return questionSet;
+function getMenuSettings() {
+  const start = normalizeNumber(startInput.value);
+  const end = normalizeNumber(endInput.value);
+  if (!validateRange(start, end)) return null;
+  return { start, end, mode: currentMode };
 }
 
 function startQuiz(useLastSettings = false) {
-  let questionSet = null;
+  const settings = useLastSettings && lastSettings ? { ...lastSettings } : getMenuSettings();
+  if (!settings) return;
 
-  if (useLastSettings && lastSettings) {
-    startNoInput.value = lastSettings.start;
-    endNoInput.value = lastSettings.end;
-    const radio = document.querySelector(`input[name="orderMode"][value="${lastSettings.orderMode}"]`);
-    if (radio) radio.checked = true;
-    questionSet = buildQuestionSet();
-  } else {
-    questionSet = buildQuestionSet();
-  }
+  startInput.value = settings.start;
+  endInput.value = settings.end;
+  setMode(settings.mode);
 
+  const questionSet = buildQuestionSet(settings);
   if (!questionSet) return;
 
+  lastSettings = { ...settings };
   currentSet = questionSet;
   currentIndex = 0;
   userAnswers = currentSet.map(() => null);
@@ -100,79 +113,84 @@ function startQuiz(useLastSettings = false) {
   renderQuestion();
 }
 
+function calculateScore() {
+  return userAnswers.reduce((total, answer, index) => {
+    const item = currentSet[index];
+    return answer && item && answer === item.meaning ? total + 1 : total;
+  }, 0);
+}
+
 function renderQuestion() {
   const item = currentSet[currentIndex];
   if (!item) return;
 
-  const answer = userAnswers[currentIndex];
-  const answered = answer !== null;
-
-  questionNo.textContent = item.no;
-  wordText.textContent = item.word;
-  exampleSentence.textContent = item.sentence;
-  exampleTranslation.textContent = item.translation;
+  const selectedAnswer = userAnswers[currentIndex];
+  const answered = selectedAnswer !== null;
 
   progressText.textContent = `${currentIndex + 1} / ${currentSet.length}`;
   progressBar.style.width = `${((currentIndex + 1) / currentSet.length) * 100}%`;
-  scoreNow.textContent = String(calculateScore());
+  scoreText.textContent = `Score: ${calculateScore()}`;
+  questionNo.textContent = `No.${item.no}`;
+  wordText.textContent = item.word;
 
-  choicesBox.innerHTML = '';
-  const labels = ['A', 'B', 'C', 'D'];
-
+  choices.innerHTML = '';
   item.choices.forEach((choice, index) => {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'choice-btn';
-    button.innerHTML = `<span class="choice-label">${labels[index]}.</span><span>${choice}</span>`;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'choiceBtn';
+    btn.innerHTML = `<span class="choiceLabel">${CHOICE_LABELS[index]}</span><span>${choice}</span>`;
 
-    if (answered) {
-      if (choice === item.meaning) {
-        button.classList.add('correct');
-      } else if (choice === answer) {
-        button.classList.add('wrong');
-      }
-      button.disabled = true;
+    if (!answered) {
+      btn.addEventListener('click', () => handleAnswer(choice));
     } else {
-      button.addEventListener('click', () => handleAnswer(choice));
+      btn.disabled = true;
+      if (choice === selectedAnswer) btn.classList.add('selected');
+      if (choice === item.meaning) btn.classList.add('correct');
+      if (choice === selectedAnswer && choice !== item.meaning) btn.classList.add('wrong');
     }
 
-    choicesBox.appendChild(button);
+    choices.appendChild(btn);
   });
 
   if (!answered) {
-    feedbackBox.className = 'feedback';
-    feedbackBox.innerHTML = 'まだ解答していません。';
+    feedback.className = 'feedback hidden';
+    feedback.innerHTML = '';
   } else {
-    updateFeedback(item, answer);
+    renderFeedback(item, selectedAnswer);
   }
 
   prevBtn.disabled = currentIndex === 0;
   nextBtn.textContent = currentIndex === currentSet.length - 1 ? '結果へ' : '次へ';
 }
 
-function handleAnswer(selectedChoice) {
-  if (userAnswers[currentIndex] !== null) return;
+function renderFeedback(item, selectedAnswer) {
+  const isCorrect = selectedAnswer === item.meaning;
+  feedback.className = `feedback ${isCorrect ? 'correct' : 'wrong'}`;
+  feedback.innerHTML = `
+    <div class="feedbackState">${isCorrect ? '○ 正解！' : '× 不正解'}</div>
+    <div class="feedbackAnswer">正解：${item.meaning}</div>
+    <div class="feedbackBlock">
+      <span class="feedbackLabel">例文</span>
+      <div>${item.sentence}</div>
+    </div>
+    <div class="feedbackBlock">
+      <span class="feedbackLabel">和訳</span>
+      <div>${item.translation}</div>
+    </div>
+  `;
+  scoreText.textContent = `Score: ${calculateScore()}`;
+}
 
-  userAnswers[currentIndex] = selectedChoice;
+function handleAnswer(choice) {
+  if (userAnswers[currentIndex] !== null) return;
+  userAnswers[currentIndex] = choice;
   renderQuestion();
 }
 
-function updateFeedback(item, answer) {
-  const isCorrect = answer === item.meaning;
-  feedbackBox.className = `feedback ${isCorrect ? 'correct' : 'wrong'}`;
-  feedbackBox.innerHTML = isCorrect
-    ? `正解です。<strong>${item.word}</strong> = <strong>${item.meaning}</strong>`
-    : `不正解です。正解は <strong>${item.meaning}</strong> です。`;
-  scoreNow.textContent = String(calculateScore());
-}
-
-function calculateScore() {
-  return userAnswers.reduce((sum, answer, index) => {
-    if (answer !== null && currentSet[index] && answer === currentSet[index].meaning) {
-      return sum + 1;
-    }
-    return sum;
-  }, 0);
+function goPrev() {
+  if (currentIndex === 0) return;
+  currentIndex -= 1;
+  renderQuestion();
 }
 
 function goNext() {
@@ -184,25 +202,27 @@ function goNext() {
   renderQuestion();
 }
 
-function goPrev() {
-  if (currentIndex === 0) return;
-  currentIndex -= 1;
-  renderQuestion();
-}
-
 function showResults() {
   const score = calculateScore();
   const total = currentSet.length;
-  const rate = Math.round((score / total) * 100);
-
-  resultSummary.innerHTML = `正解数：<strong>${score}</strong> / ${total}<br>正答率：<strong>${rate}%</strong>`;
+  const rate = total ? Math.round((score / total) * 100) : 0;
+  finalScore.textContent = `${score} / ${total}`;
+  finalRate.textContent = `正答率 ${rate}%`;
   showScreen(resultScreen);
+}
+
+function returnToMenu() {
+  if (lastSettings) {
+    startInput.value = lastSettings.start;
+    endInput.value = lastSettings.end;
+    setMode(lastSettings.mode);
+  }
+  showScreen(menuScreen);
 }
 
 function speakCurrentWord() {
   const item = currentSet[currentIndex];
   if (!item || !('speechSynthesis' in window)) return;
-
   window.speechSynthesis.cancel();
   const utterance = new SpeechSynthesisUtterance(item.word);
   utterance.lang = 'en-US';
@@ -210,13 +230,19 @@ function speakCurrentWord() {
   window.speechSynthesis.speak(utterance);
 }
 
+modeButtons.forEach(btn => {
+  btn.addEventListener('click', () => setMode(btn.dataset.mode));
+});
+
 startBtn.addEventListener('click', () => startQuiz(false));
 prevBtn.addEventListener('click', goPrev);
 nextBtn.addEventListener('click', goNext);
-restartBtn.addEventListener('click', () => startQuiz(true));
-menuBtn.addEventListener('click', () => showScreen(menuScreen));
-retryBtn.addEventListener('click', () => startQuiz(true));
-resultMenuBtn.addEventListener('click', () => showScreen(menuScreen));
 speakBtn.addEventListener('click', speakCurrentWord);
+restartBtn.addEventListener('click', () => startQuiz(true));
+restartFromResultBtn.addEventListener('click', () => startQuiz(true));
+retryRangeBtn.addEventListener('click', returnToMenu);
+retryRangeFromResultBtn.addEventListener('click', returnToMenu);
+backMenuBtn.addEventListener('click', returnToMenu);
+backMenuFromResultBtn.addEventListener('click', returnToMenu);
 
 showScreen(menuScreen);
