@@ -1,6 +1,9 @@
 if (!window.__authOK) {
   // 認証失敗時は何も実行しない
 } else {
+if (!window.__authOK) {
+  // 認証失敗時は何も実行しない
+} else {
 const menuScreen = document.getElementById('menuScreen');
 const quizScreen = document.getElementById('quizScreen');
 const resultScreen = document.getElementById('resultScreen');
@@ -249,4 +252,5 @@ backMenuBtn.addEventListener('click', returnToMenu);
 backMenuFromResultBtn.addEventListener('click', returnToMenu);
 
 showScreen(menuScreen);
+}
 }
