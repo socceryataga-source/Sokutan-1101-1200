@@ -1,6 +1,10 @@
 if (!window.__authOK) {
   // 認証失敗時は何も実行しない
 } else {
+// removed nested auth
+if (true) {
+  // 認証失敗時は何も実行しない
+} else {
 const menuScreen = document.getElementById('menuScreen');
 const quizScreen = document.getElementById('quizScreen');
 const resultScreen = document.getElementById('resultScreen');
@@ -250,4 +254,5 @@ backMenuFromResultBtn.addEventListener('click', returnToMenu);
 
 showScreen(menuScreen);
 
+}
 }
